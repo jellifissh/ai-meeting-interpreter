@@ -8,6 +8,7 @@
 - 本地 ASR 识别原文
 - DeepSeek 翻译译文
 - 页面展示双语字幕结果
+- 支持上传式 near-real-time 分段字幕演示，通过音频切片模拟同传字幕流程
 - ASR 初始化失败时自动 fallback 到 mock ASR
 - 翻译失败或未配置 API Key 时自动 fallback 到 mock translation
 
@@ -33,7 +34,8 @@ python app.py
 
 ## 说明
 
-- 当前不做实时流式识别，只支持上传音频后整段识别
+- 当前版本为上传式 near-real-time subtitle demo，通过音频切片模拟同传字幕流程
+- 真正实时 WebSocket / 麦克风流式识别为后续扩展
 - 首次运行本地 ASR 时，FunASR / SenseVoiceSmall 可能会下载模型文件
 - 如果本地模型初始化失败，页面会继续使用 mock ASR 返回演示文本
 - 如果未配置 `DEEPSEEK_API_KEY`，页面会继续使用 mock 翻译

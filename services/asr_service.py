@@ -13,6 +13,14 @@ class ASRResult:
     used_mock: bool
 
 
+@dataclass
+class AudioSegment:
+    start_time: str
+    end_time: str
+    audio_path: str
+    status: str
+
+
 class MockASRService:
     """Fallback ASR used when local model init or inference is unavailable."""
 
@@ -118,6 +126,9 @@ class LocalASRService:
                 used_mock=True,
             )
 
+    def segment_audio(self, audio_path: str, segment_duration_seconds: int = 5) -> list[AudioSegment]:
+        return self.audio_preprocessor.segment_audio(audio_path, segment_duration_seconds=segment_duration_seconds)
+
     def _prepare_model_dir(self) -> Path:
         ascii_cache_dir = Path.cwd() / ".model_cache" / self._MODEL_NAME
         if self._is_ready_model_dir(ascii_cache_dir):
@@ -173,8 +184,6 @@ class LocalASRService:
     @staticmethod
     def _read_powershell_userprofile() -> str | None:
         try:
-            import subprocess
-
             completed = subprocess.run(
                 ["powershell", "-NoProfile", "-Command", "Write-Output $env:USERPROFILE"],
                 capture_output=True,
@@ -189,7 +198,7 @@ class LocalASRService:
 
     @staticmethod
     def _maybe_fix_mojibake(text: str) -> str:
-        suspicious_markers = ("å", "æ", "ç", "è", "é", "ã", "â")
+        suspicious_markers = ("氓", "忙", "莽", "猫", "茅", "茫", "芒")
         if not text or not any(marker in text for marker in suspicious_markers):
             return text
 
@@ -240,11 +249,13 @@ class LocalASRService:
 
 
 class AudioPreprocessor:
-    """Normalize uploaded audio to a format that local ASR handles reliably."""
+    """Normalize and segment uploaded audio for local ASR."""
 
     def __init__(self) -> None:
         self.cache_dir = Path.cwd() / "runtime" / "audio_cache"
+        self.chunk_dir = Path.cwd() / "runtime" / "audio_chunks"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.chunk_dir.mkdir(parents=True, exist_ok=True)
         self.ffmpeg_error_message = (
             "ffmpeg not found. Put ffmpeg.exe under runtime/ffmpeg/ or install ffmpeg in PATH."
         )
@@ -284,6 +295,63 @@ class AudioPreprocessor:
 
         return output_path
 
+    def segment_audio(self, audio_path: str, segment_duration_seconds: int = 5) -> list[AudioSegment]:
+        source_path = Path(audio_path)
+        if not source_path.exists():
+            raise FileNotFoundError(f"Audio file not found: {source_path}")
+
+        ffmpeg_path = self._resolve_ffmpeg_path()
+        segment_group = self.chunk_dir / f"{source_path.stem}_{uuid.uuid4().hex}"
+        segment_group.mkdir(parents=True, exist_ok=True)
+
+        pattern = segment_group / "chunk_%03d.wav"
+        command = [
+            str(ffmpeg_path),
+            "-y",
+            "-i",
+            str(source_path),
+            "-f",
+            "segment",
+            "-segment_time",
+            str(segment_duration_seconds),
+            "-c:a",
+            "pcm_s16le",
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            str(pattern),
+        ]
+
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if completed.returncode != 0:
+            stderr = completed.stderr.strip() or completed.stdout.strip() or "ffmpeg segmentation failed"
+            raise RuntimeError(stderr)
+
+        chunk_files = sorted(segment_group.glob("chunk_*.wav"))
+        if not chunk_files:
+            raise RuntimeError("No audio chunks were generated.")
+
+        segments = []
+        for index, chunk_file in enumerate(chunk_files):
+            start_seconds = index * segment_duration_seconds
+            end_seconds = start_seconds + segment_duration_seconds
+            segments.append(
+                AudioSegment(
+                    start_time=self._format_seconds(start_seconds),
+                    end_time=self._format_seconds(end_seconds),
+                    audio_path=str(chunk_file),
+                    status="Chunk ready",
+                )
+            )
+
+        return segments
+
     def _resolve_ffmpeg_path(self) -> Path:
         candidates = [
             Path.cwd() / "runtime" / "ffmpeg" / "ffmpeg.exe",
@@ -299,3 +367,8 @@ class AudioPreprocessor:
             return Path(system_ffmpeg)
 
         raise FileNotFoundError(self.ffmpeg_error_message)
+
+    @staticmethod
+    def _format_seconds(total_seconds: int) -> str:
+        minutes, seconds = divmod(total_seconds, 60)
+        return f"{minutes:02d}:{seconds:02d}"
