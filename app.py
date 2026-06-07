@@ -3,7 +3,7 @@ from pathlib import Path
 import gradio as gr
 from dotenv import load_dotenv
 
-from services.asr_service import MockASRService
+from services.asr_service import LocalASRService
 from services.prompt_builder import PromptBuilder
 from services.translate_service import TranslateService
 
@@ -15,8 +15,8 @@ APP_TITLE = "AI Meeting Interpreter Demo"
 TRANSLATION_DIRECTIONS = ["中文→英文", "英文→中文"]
 MEETING_SCENES = ["通用会议", "技术会议", "金融会议", "面试场景"]
 
-asr_service = MockASRService()
 prompt_builder = PromptBuilder()
+asr_service = LocalASRService()
 translate_service = TranslateService(prompt_builder=prompt_builder)
 
 
@@ -26,19 +26,22 @@ def run_demo(audio_file: str | None, direction: str, scene: str) -> tuple[str, s
 
     audio_path = Path(audio_file)
     context = prompt_builder.build(direction=direction, scene=scene, audio_filename=audio_path.name)
-    transcript = asr_service.transcribe(audio_path=str(audio_path), context=context)
+    asr_result = asr_service.transcribe(audio_path=str(audio_path), context=context)
     translation_result = translate_service.translate(
-        source_text=transcript,
+        source_text=asr_result.transcript,
         direction=direction,
         meeting_scene=scene,
     )
 
-    return transcript, translation_result.translated_text, translation_result.status
+    status_parts = [asr_result.status, translation_result.status]
+    status = " | ".join(part for part in status_parts if part)
+
+    return asr_result.transcript, translation_result.translated_text, status
 
 
 with gr.Blocks(title=APP_TITLE) as demo:
     gr.Markdown(f"# {APP_TITLE}")
-    gr.Markdown("上传音频文件，选择翻译方向和会议场景，返回 mock ASR + DeepSeek 翻译结果。")
+    gr.Markdown("上传音频文件，执行本地语音识别和 DeepSeek 翻译，返回双语字幕结果。")
 
     with gr.Row():
         audio_input = gr.Audio(label="会议音频", type="filepath")
@@ -56,9 +59,9 @@ with gr.Blocks(title=APP_TITLE) as demo:
             submit_button = gr.Button("开始处理", variant="primary")
 
     with gr.Column():
-        source_output = gr.Textbox(label="原文", lines=5)
-        translated_output = gr.Textbox(label="译文", lines=5)
-        status_output = gr.Textbox(label="状态", lines=1)
+        source_output = gr.Textbox(label="原文", lines=6)
+        translated_output = gr.Textbox(label="译文", lines=6)
+        status_output = gr.Textbox(label="状态", lines=2)
 
     submit_button.click(
         fn=run_demo,

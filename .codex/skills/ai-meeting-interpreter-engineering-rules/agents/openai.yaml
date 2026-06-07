@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI Meeting Interpreter Engineering Rules"
+  short_description: "Demo-first workflow and commit rules."
+  default_prompt: "Use -meeting-interpreter-engineering-rules to keep this demo runnable, fallback-safe, and split into internship-ready incremental commits."
