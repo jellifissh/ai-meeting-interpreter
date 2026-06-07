@@ -5,6 +5,7 @@ import gradio as gr
 from dotenv import load_dotenv
 
 from services.asr_service import LocalASRService
+from services.insight_service import InsightService
 from services.prompt_builder import PromptBuilder
 from services.transcript_polish_service import TranscriptPolishService
 from services.translate_service import TranslateService
@@ -23,6 +24,7 @@ CHINESE_SENTENCE_CHAR_THRESHOLD = 18
 
 prompt_builder = PromptBuilder()
 asr_service = LocalASRService()
+insight_service = InsightService()
 transcript_polish_service = TranscriptPolishService()
 translate_service = TranslateService(prompt_builder=prompt_builder)
 
@@ -34,7 +36,7 @@ def run_demo(
     processing_mode: str,
 ):
     if not audio_file:
-        yield "", "", "请先录制或上传音频", []
+        yield "", "", "请先录制或上传音频", [], ""
         return
 
     audio_path = Path(audio_file)
@@ -109,12 +111,16 @@ def _scene_strategy_text(scene: str) -> str:
     return prompt_builder.describe_scene_strategy(scene)
 
 
+def _build_meeting_insight(polished_transcript: str, scene: str) -> str:
+    return insight_service.extract(polished_transcript=polished_transcript, meeting_scene=scene).insight_text
+
+
 def _run_full_audio_demo(
     audio_path: Path,
     context: dict,
     direction: str,
     scene: str,
-) -> tuple[str, str, str, list[list[str]]]:
+) -> tuple[str, str, str, list[list[str]], str]:
     asr_result = asr_service.transcribe(audio_path=str(audio_path), context=context)
     polish_result = transcript_polish_service.polish(
         raw_transcript=asr_result.transcript,
@@ -131,8 +137,9 @@ def _run_full_audio_demo(
     status_parts = [asr_result.status, polish_result.status, translation_result.status]
     status = " | ".join(part for part in status_parts if part)
     timeline_rows = [["整段", asr_result.transcript, translation_result.translated_text, status]]
+    insight_text = _build_meeting_insight(polished_transcript, scene)
 
-    return polished_transcript, translation_result.translated_text, status, timeline_rows
+    return polished_transcript, translation_result.translated_text, status, timeline_rows, insight_text
 
 
 def _run_segmented_demo(
@@ -147,14 +154,14 @@ def _run_segmented_demo(
             segment_duration_seconds=DEFAULT_SEGMENT_DURATION_SECONDS,
         )
     except Exception as exc:
-        full_source, full_translation, full_status, timeline_rows = _run_full_audio_demo(
+        full_source, full_translation, full_status, timeline_rows, insight_text = _run_full_audio_demo(
             audio_path,
             context,
             direction,
             scene,
         )
         fallback_status = f"Segmented subtitle mode failed: {exc}. Fallback to full-audio mode. | {full_status}"
-        yield full_source, full_translation, fallback_status, timeline_rows
+        yield full_source, full_translation, fallback_status, timeline_rows, insight_text
         return
 
     timeline_rows: list[list[str]] = []
@@ -169,7 +176,7 @@ def _run_segmented_demo(
     pending_status_parts: list[str] = []
 
     total_segments = len(segments)
-    yield "", "", f"正在处理：第 0 / {total_segments} 段，ASR 成功 0 段，翻译成功 0 段。", []
+    yield "", "", f"正在处理：第 0 / {total_segments} 段，ASR 成功 0 段，翻译成功 0 段。", [], ""
 
     for index, segment in enumerate(segments, start=1):
         segment_context = dict(context)
@@ -237,7 +244,7 @@ def _run_segmented_demo(
             pending_end_time = ""
             pending_status_parts = []
 
-        yield cumulative_source, cumulative_translation, progress_status, list(timeline_rows)
+        yield cumulative_source, cumulative_translation, progress_status, list(timeline_rows), ""
 
     if pending_text:
         recent_context = _build_recent_context(source_parts)
@@ -291,7 +298,8 @@ def _run_segmented_demo(
         final_status += f" 失败段数：{fallback_segment_count}，已使用 fallback。"
     final_status += f" {polish_result.status} | {final_translation_result.status}"
 
-    yield polished_full_source, full_translation, final_status, list(timeline_rows)
+    insight_text = _build_meeting_insight(polished_full_source, scene)
+    yield polished_full_source, full_translation, final_status, list(timeline_rows), insight_text
 
 
 with gr.Blocks(title=APP_TITLE) as demo:
@@ -347,6 +355,7 @@ with gr.Blocks(title=APP_TITLE) as demo:
                     row_count=(1, "dynamic"),
                     col_count=(4, "fixed"),
                 )
+                stable_insight_output = gr.Textbox(label="AI 会议理解", lines=10)
 
             stable_submit_button.click(
                 fn=run_demo,
@@ -356,6 +365,7 @@ with gr.Blocks(title=APP_TITLE) as demo:
                     stable_translated_output,
                     stable_status_output,
                     stable_timeline_output,
+                    stable_insight_output,
                 ],
             )
 

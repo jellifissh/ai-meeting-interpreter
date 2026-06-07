@@ -17,6 +17,7 @@
 - 支持分段字幕时间轴动态输出
 - 使用本地 ASR + DeepSeek 翻译
 - 支持对 ASR 转写文本进行智能清洗，用于修复断句、标点和明显识别错误
+- 支持会议摘要、关键词和待办/结论提取
 - 当前不是工业级 WebSocket 实时系统
 - 后续可扩展云端 Streaming ASR、WebSocket、VAD、TTS
 
@@ -26,6 +27,7 @@
 - 本地 ASR 识别原文
 - ASR 转写文本智能清洗
 - DeepSeek 翻译译文
+- AI 会议理解：摘要、关键词、待办/结论
 - 页面展示双语字幕时间轴
 - 稳定模式：完整音频 -> 本地 ASR -> Transcript Polish -> DeepSeek 翻译 -> 双语字幕时间轴
 - ASR 初始化失败时自动 fallback 到 mock ASR
@@ -58,6 +60,7 @@ python app.py
 - 当前版本不是工业级 WebSocket 实时系统
 - 通过短音频切片 + 动态逐段输出模拟同传字幕体验
 - 系统支持对 ASR 转写文本进行智能清洗，用于修复断句、标点和明显识别错误
+- 系统支持会议摘要、关键词和待办/结论提取
 - 首次运行本地 ASR 时，FunASR / SenseVoiceSmall 可能会下载模型文件
 - 如果本地模型初始化失败，页面会继续使用 mock ASR 返回演示文本
 - 如果未配置 `DEEPSEEK_API_KEY`，页面会继续使用 mock 翻译
