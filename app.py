@@ -105,6 +105,10 @@ def _source_language_from_direction(direction: str) -> str:
     return "中文" if direction == "中文→英文" else "英文"
 
 
+def _scene_strategy_text(scene: str) -> str:
+    return prompt_builder.describe_scene_strategy(scene)
+
+
 def _run_full_audio_demo(
     audio_path: Path,
     context: dict,
@@ -324,6 +328,12 @@ with gr.Blocks(title=APP_TITLE) as demo:
                         value=PROCESSING_MODES[0],
                         label="处理模式",
                     )
+                    stable_scene_strategy_output = gr.Textbox(
+                        label="AI 场景策略",
+                        value=_scene_strategy_text(MEETING_SCENES[0]),
+                        lines=4,
+                        interactive=False,
+                    )
                     stable_submit_button = gr.Button("开始准实时传译", variant="primary")
 
             with gr.Column():
@@ -347,6 +357,13 @@ with gr.Blocks(title=APP_TITLE) as demo:
                     stable_status_output,
                     stable_timeline_output,
                 ],
+            )
+
+            stable_scene_input.change(
+                fn=_scene_strategy_text,
+                inputs=[stable_scene_input],
+                outputs=[stable_scene_strategy_output],
+                queue=False,
             )
 
 
