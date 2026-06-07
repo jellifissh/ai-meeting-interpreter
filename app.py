@@ -21,6 +21,143 @@ PROCESSING_MODES = ["分段字幕（推荐）", "整段翻译"]
 DEFAULT_SEGMENT_DURATION_SECONDS = 8
 ENGLISH_SENTENCE_WORD_THRESHOLD = 12
 CHINESE_SENTENCE_CHAR_THRESHOLD = 18
+APP_THEME = gr.themes.Soft(
+    primary_hue="blue",
+    secondary_hue="orange",
+    neutral_hue="slate",
+)
+APP_CSS = """
+body, .gradio-container {
+    background:
+        radial-gradient(circle at top left, rgba(59, 130, 246, 0.10), transparent 24%),
+        radial-gradient(circle at top right, rgba(249, 115, 22, 0.10), transparent 22%),
+        linear-gradient(180deg, #f7f9fc 0%, #eef4fb 100%);
+}
+.app-shell {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 28px 0 40px;
+}
+.hero-card,
+.demo-card {
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(255, 255, 255, 0.90);
+    box-shadow: 0 20px 48px rgba(15, 23, 42, 0.08);
+    border-radius: 20px;
+}
+.hero-card {
+    padding: 28px 30px 18px;
+    margin-bottom: 20px;
+}
+.hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.10);
+    color: #1d4ed8;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 14px;
+}
+.hero-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 38px;
+    line-height: 1.1;
+    font-weight: 800;
+}
+.hero-subtitle {
+    margin: 14px 0 0;
+    max-width: 840px;
+    color: #475569;
+    font-size: 16px;
+    line-height: 1.75;
+}
+.chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+}
+.chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(59, 130, 246, 0.15);
+    background: #f8fbff;
+    color: #1e293b;
+    font-size: 13px;
+    font-weight: 600;
+}
+.section-label {
+    margin: 4px 0 14px;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.7;
+}
+.demo-card {
+    padding: 18px 18px 14px;
+}
+.card-title {
+    margin: 0 0 12px;
+    color: #0f172a;
+    font-size: 18px;
+    font-weight: 700;
+}
+.card-title.small {
+    font-size: 16px;
+}
+.soft-box textarea,
+.status-box textarea,
+.insight-box textarea {
+    border-radius: 16px !important;
+    border: 1px solid rgba(148, 163, 184, 0.22) !important;
+    background: #f8fafc !important;
+    font-size: 15px !important;
+    line-height: 1.72 !important;
+}
+.soft-box textarea {
+    min-height: 220px !important;
+}
+.status-box textarea {
+    min-height: 110px !important;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(249, 115, 22, 0.08)) !important;
+    font-weight: 600 !important;
+}
+.insight-box textarea {
+    min-height: 260px !important;
+}
+.timeline-card .wrap {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    max-height: 380px;
+    overflow-y: auto !important;
+}
+.timeline-card table {
+    background: white !important;
+}
+.timeline-card th {
+    background: #eff6ff !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+.timeline-card td,
+.timeline-card th {
+    white-space: normal !important;
+    word-break: break-word !important;
+    line-height: 1.55 !important;
+}
+.primary-action button {
+    min-height: 48px;
+    border-radius: 14px !important;
+    font-weight: 700 !important;
+    font-size: 15px !important;
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.20);
+}
+"""
 
 prompt_builder = PromptBuilder()
 asr_service = LocalASRService()
@@ -36,7 +173,7 @@ def run_demo(
     processing_mode: str,
 ):
     if not audio_file:
-        yield "", "", "请先录制或上传音频", [], ""
+        yield "", "", _format_status_display("请先录制或上传音频"), [], ""
         return
 
     audio_path = Path(audio_file)
@@ -115,6 +252,22 @@ def _build_meeting_insight(polished_transcript: str, scene: str) -> str:
     return insight_service.extract(polished_transcript=polished_transcript, meeting_scene=scene).insight_text
 
 
+def _format_status_display(status: str) -> str:
+    normalized = (status or "").strip()
+    if not normalized:
+        return ""
+    lowered = normalized.lower()
+    if normalized == "请先录制或上传音频":
+        return f"🎙️ {normalized}"
+    if normalized.startswith("处理完成"):
+        return f"✅ {normalized}"
+    if normalized.startswith("正在") or normalized.startswith("已输出"):
+        return f"⏳ {normalized}"
+    if "fallback" in lowered or "failed" in lowered or "失败" in normalized:
+        return f"⚠️ {normalized}"
+    return f"ℹ️ {normalized}"
+
+
 def _run_full_audio_demo(
     audio_path: Path,
     context: dict,
@@ -135,7 +288,7 @@ def _run_full_audio_demo(
     )
 
     status_parts = [asr_result.status, polish_result.status, translation_result.status]
-    status = " | ".join(part for part in status_parts if part)
+    status = _format_status_display(" | ".join(part for part in status_parts if part))
     timeline_rows = [["整段", asr_result.transcript, translation_result.translated_text, status]]
     insight_text = _build_meeting_insight(polished_transcript, scene)
 
@@ -160,7 +313,9 @@ def _run_segmented_demo(
             direction,
             scene,
         )
-        fallback_status = f"Segmented subtitle mode failed: {exc}. Fallback to full-audio mode. | {full_status}"
+        fallback_status = _format_status_display(
+            f"Segmented subtitle mode failed: {exc}. Fallback to full-audio mode. | {full_status}"
+        )
         yield full_source, full_translation, fallback_status, timeline_rows, insight_text
         return
 
@@ -176,7 +331,7 @@ def _run_segmented_demo(
     pending_status_parts: list[str] = []
 
     total_segments = len(segments)
-    yield "", "", f"正在处理：第 0 / {total_segments} 段，ASR 成功 0 段，翻译成功 0 段。", [], ""
+    yield "", "", _format_status_display(f"正在处理：第 0 / {total_segments} 段，ASR 成功 0 段，翻译成功 0 段。"), [], ""
 
     for index, segment in enumerate(segments, start=1):
         segment_context = dict(context)
@@ -244,7 +399,7 @@ def _run_segmented_demo(
             pending_end_time = ""
             pending_status_parts = []
 
-        yield cumulative_source, cumulative_translation, progress_status, list(timeline_rows), ""
+        yield cumulative_source, cumulative_translation, _format_status_display(progress_status), list(timeline_rows), ""
 
     if pending_text:
         recent_context = _build_recent_context(source_parts)
@@ -299,28 +454,49 @@ def _run_segmented_demo(
     final_status += f" {polish_result.status} | {final_translation_result.status}"
 
     insight_text = _build_meeting_insight(polished_full_source, scene)
-    yield polished_full_source, full_translation, final_status, list(timeline_rows), insight_text
+    yield polished_full_source, full_translation, _format_status_display(final_status), list(timeline_rows), insight_text
 
 
-with gr.Blocks(title=APP_TITLE) as demo:
-    gr.Markdown(f"# {APP_TITLE}")
-    gr.Markdown(
-        "AI Pipeline: Local ASR(SenseVoiceSmall/FunASR) -> Transcript Polish -> DeepSeek LLM Translation -> Bilingual Subtitle Timeline"
-    )
+with gr.Blocks(title=APP_TITLE, theme=APP_THEME, css=APP_CSS) as demo:
+    with gr.Column(elem_classes=["app-shell"]):
+        gr.HTML(
+            """
+            <section class="hero-card">
+                <div class="hero-eyebrow">AI 会议同传 Demo</div>
+                <h1 class="hero-title">AI Meeting Interpreter</h1>
+                <p class="hero-subtitle">
+                    麦克风录制 / 上传会议音频，自动完成 ASR、文本清洗、场景化翻译和双语字幕生成。
+                </p>
+                <div class="chip-row">
+                    <span class="chip">Audio Input</span>
+                    <span class="chip">Local ASR</span>
+                    <span class="chip">Transcript Polish</span>
+                    <span class="chip">DeepSeek Translation</span>
+                    <span class="chip">Bilingual Subtitle</span>
+                    <span class="chip">AI Meeting Insights</span>
+                </div>
+            </section>
+            """
+        )
 
-    with gr.Tabs():
-        with gr.Tab("上传/录制式准实时传译（稳定）"):
-            gr.Markdown(
-                "当前版本为上传/录制式准实时同传 Demo：用户可录制完整会议音频或直接上传音频，系统会将音频切分为短片段，逐段进行本地 ASR、Transcript Polish 和 DeepSeek 翻译，并动态生成双语字幕时间轴。"
-            )
+        gr.Markdown(
+            "当前版本为上传/录制式准实时同传 Demo：系统会将完整音频切分为短片段，逐段进行本地 ASR、文本清洗与场景化翻译，并输出双语字幕时间轴和会议理解结果。",
+            elem_classes=["section-label"],
+        )
 
-            with gr.Row():
-                stable_audio_input = gr.Audio(
-                    label="麦克风录音 / 上传会议音频",
-                    sources=["microphone", "upload"],
-                    type="filepath",
-                )
-                with gr.Column():
+        with gr.Row(equal_height=True):
+            with gr.Column(scale=6):
+                with gr.Group(elem_classes=["demo-card"]):
+                    gr.HTML('<h3 class="card-title">音频输入</h3>')
+                    stable_audio_input = gr.Audio(
+                        label="麦克风录音 / 上传会议音频",
+                        sources=["microphone", "upload"],
+                        type="filepath",
+                    )
+
+            with gr.Column(scale=5):
+                with gr.Group(elem_classes=["demo-card"]):
+                    gr.HTML('<h3 class="card-title">传译配置</h3>')
                     stable_direction_input = gr.Dropdown(
                         choices=TRANSLATION_DIRECTIONS,
                         value=TRANSLATION_DIRECTIONS[0],
@@ -339,42 +515,78 @@ with gr.Blocks(title=APP_TITLE) as demo:
                     stable_scene_strategy_output = gr.Textbox(
                         label="AI 场景策略",
                         value=_scene_strategy_text(MEETING_SCENES[0]),
-                        lines=4,
+                        lines=5,
                         interactive=False,
+                        elem_classes=["soft-box"],
                     )
-                    stable_submit_button = gr.Button("开始准实时传译", variant="primary")
+                    stable_submit_button = gr.Button(
+                        "开始准实时传译",
+                        variant="primary",
+                        elem_classes=["primary-action"],
+                    )
 
-            with gr.Column():
-                stable_source_output = gr.Textbox(label="原文", lines=6)
-                stable_translated_output = gr.Textbox(label="译文", lines=6)
-                stable_status_output = gr.Textbox(label="状态", lines=3)
-                stable_timeline_output = gr.Dataframe(
-                    headers=["时间段", "原文", "译文", "状态"],
-                    datatype=["str", "str", "str", "str"],
-                    label="双语字幕时间轴",
-                    row_count=(1, "dynamic"),
-                    col_count=(4, "fixed"),
-                )
-                stable_insight_output = gr.Textbox(label="AI 会议理解", lines=10)
+        with gr.Row(equal_height=True):
+            with gr.Column(scale=1):
+                with gr.Group(elem_classes=["demo-card"]):
+                    gr.HTML('<h3 class="card-title">原文转写</h3>')
+                    stable_source_output = gr.Textbox(
+                        label="原文",
+                        lines=8,
+                        elem_classes=["soft-box"],
+                    )
+            with gr.Column(scale=1):
+                with gr.Group(elem_classes=["demo-card"]):
+                    gr.HTML('<h3 class="card-title">译文结果</h3>')
+                    stable_translated_output = gr.Textbox(
+                        label="译文",
+                        lines=8,
+                        elem_classes=["soft-box"],
+                    )
 
-            stable_submit_button.click(
-                fn=run_demo,
-                inputs=[stable_audio_input, stable_direction_input, stable_scene_input, stable_mode_input],
-                outputs=[
-                    stable_source_output,
-                    stable_translated_output,
-                    stable_status_output,
-                    stable_timeline_output,
-                    stable_insight_output,
-                ],
+        with gr.Group(elem_classes=["demo-card"]):
+            gr.HTML('<h3 class="card-title small">处理状态</h3>')
+            stable_status_output = gr.Textbox(
+                label="状态",
+                lines=4,
+                elem_classes=["status-box"],
             )
 
-            stable_scene_input.change(
-                fn=_scene_strategy_text,
-                inputs=[stable_scene_input],
-                outputs=[stable_scene_strategy_output],
-                queue=False,
+        with gr.Group(elem_classes=["demo-card", "timeline-card"]):
+            gr.HTML('<h3 class="card-title">双语字幕时间轴</h3>')
+            stable_timeline_output = gr.Dataframe(
+                headers=["时间段", "原文", "译文", "状态"],
+                datatype=["str", "str", "str", "str"],
+                label="双语字幕时间轴",
+                row_count=(1, "dynamic"),
+                col_count=(4, "fixed"),
             )
+
+        with gr.Group(elem_classes=["demo-card"]):
+            gr.HTML('<h3 class="card-title">AI 会议理解</h3>')
+            stable_insight_output = gr.Textbox(
+                label="AI 会议理解",
+                lines=10,
+                elem_classes=["insight-box"],
+            )
+
+        stable_submit_button.click(
+            fn=run_demo,
+            inputs=[stable_audio_input, stable_direction_input, stable_scene_input, stable_mode_input],
+            outputs=[
+                stable_source_output,
+                stable_translated_output,
+                stable_status_output,
+                stable_timeline_output,
+                stable_insight_output,
+            ],
+        )
+
+        stable_scene_input.change(
+            fn=_scene_strategy_text,
+            inputs=[stable_scene_input],
+            outputs=[stable_scene_strategy_output],
+            queue=False,
+        )
 
 
 if __name__ == "__main__":

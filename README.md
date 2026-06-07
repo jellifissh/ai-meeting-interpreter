@@ -9,6 +9,7 @@
 ## Screenshots
 
 - Runtime screenshot: `[TODO: replace with screenshot image or link]`
+- 最终页面使用 Gradio + 自定义 CSS 进行产品化展示。
 
 ## 当前版本说明
 
