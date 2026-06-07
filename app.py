@@ -22,140 +22,218 @@ DEFAULT_SEGMENT_DURATION_SECONDS = 8
 ENGLISH_SENTENCE_WORD_THRESHOLD = 12
 CHINESE_SENTENCE_CHAR_THRESHOLD = 18
 APP_THEME = gr.themes.Soft(
-    primary_hue="blue",
-    secondary_hue="orange",
+    primary_hue="indigo",
+    secondary_hue="blue",
     neutral_hue="slate",
 )
 APP_CSS = """
-body, .gradio-container {
+:root {
+    --page-bg: #f5f7fb;
+    --panel-bg: rgba(255, 255, 255, 0.92);
+    --panel-border: rgba(15, 23, 42, 0.08);
+    --panel-shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
+    --text-main: #0f172a;
+    --text-sub: #64748b;
+    --chip-bg: #eef2ff;
+    --chip-text: #4338ca;
+}
+
+body,
+.gradio-container {
     background:
-        radial-gradient(circle at top left, rgba(59, 130, 246, 0.10), transparent 24%),
-        radial-gradient(circle at top right, rgba(249, 115, 22, 0.10), transparent 22%),
-        linear-gradient(180deg, #f7f9fc 0%, #eef4fb 100%);
+        radial-gradient(circle at top left, rgba(79, 70, 229, 0.10), transparent 24%),
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 20%),
+        linear-gradient(180deg, #f8fafc 0%, #eef3fb 100%);
 }
-.app-shell {
-    max-width: 1240px;
+
+.gradio-container {
+    max-width: 1480px !important;
     margin: 0 auto;
-    padding: 28px 0 40px;
+    padding: 12px 14px 14px !important;
 }
-.hero-card,
-.demo-card {
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    background: rgba(255, 255, 255, 0.90);
-    box-shadow: 0 20px 48px rgba(15, 23, 42, 0.08);
-    border-radius: 20px;
+
+.gr-block,
+.gr-group,
+.block {
+    border: none !important;
+    box-shadow: none !important;
 }
-.hero-card {
-    padding: 28px 30px 18px;
-    margin-bottom: 20px;
+
+.workspace-shell {
+    gap: 12px !important;
 }
-.hero-eyebrow {
-    display: inline-flex;
-    align-items: center;
-    padding: 6px 12px;
-    border-radius: 999px;
-    background: rgba(37, 99, 235, 0.10);
-    color: #1d4ed8;
-    font-size: 13px;
-    font-weight: 700;
-    margin-bottom: 14px;
+
+.header-bar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    border: 1px solid var(--panel-border);
+    border-radius: 18px;
+    background: var(--panel-bg);
+    box-shadow: var(--panel-shadow);
 }
-.hero-title {
+
+.header-copy h1 {
     margin: 0;
-    color: #0f172a;
-    font-size: 38px;
-    line-height: 1.1;
+    color: var(--text-main);
+    font-size: 28px;
+    line-height: 1.15;
     font-weight: 800;
 }
-.hero-subtitle {
-    margin: 14px 0 0;
-    max-width: 840px;
-    color: #475569;
-    font-size: 16px;
-    line-height: 1.75;
+
+.header-copy p {
+    margin: 6px 0 0;
+    color: var(--text-sub);
+    font-size: 14px;
+    line-height: 1.6;
 }
-.chip-row {
+
+.header-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 20px;
+    justify-content: flex-end;
+    gap: 8px;
+    max-width: 520px;
 }
+
 .chip {
-    display: inline-flex;
-    align-items: center;
-    padding: 8px 14px;
+    padding: 5px 10px;
     border-radius: 999px;
-    border: 1px solid rgba(59, 130, 246, 0.15);
-    background: #f8fbff;
-    color: #1e293b;
-    font-size: 13px;
+    border: 1px solid rgba(79, 70, 229, 0.10);
+    background: var(--chip-bg);
+    color: var(--chip-text);
+    font-size: 12px;
     font-weight: 600;
 }
-.section-label {
-    margin: 4px 0 14px;
-    color: #475569;
-    font-size: 14px;
-    line-height: 1.7;
+
+.side-panel,
+.content-panel,
+.tab-panel {
+    border: 1px solid var(--panel-border);
+    background: var(--panel-bg);
+    box-shadow: var(--panel-shadow);
+    border-radius: 18px;
 }
-.demo-card {
-    padding: 18px 18px 14px;
+
+.side-panel,
+.content-panel {
+    padding: 12px;
 }
-.card-title {
-    margin: 0 0 12px;
-    color: #0f172a;
-    font-size: 18px;
+
+.side-panel {
+    min-height: 760px;
+}
+
+.panel-title {
+    margin: 0 0 10px;
+    color: var(--text-main);
+    font-size: 16px;
     font-weight: 700;
 }
-.card-title.small {
-    font-size: 16px;
+
+.panel-subtitle {
+    margin: -4px 0 10px;
+    color: var(--text-sub);
+    font-size: 12px;
+    line-height: 1.5;
 }
-.soft-box textarea,
-.status-box textarea,
-.insight-box textarea {
-    border-radius: 16px !important;
-    border: 1px solid rgba(148, 163, 184, 0.22) !important;
-    background: #f8fafc !important;
+
+.left-stack,
+.right-stack,
+.output-row {
+    gap: 12px !important;
+}
+
+.compact-box textarea {
+    border-radius: 12px !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    background: #fbfcfe !important;
     font-size: 15px !important;
-    line-height: 1.72 !important;
+    line-height: 1.65 !important;
 }
-.soft-box textarea {
-    min-height: 220px !important;
+
+.strategy-box textarea {
+    min-height: 148px !important;
+    max-height: 148px !important;
 }
+
+.output-box textarea {
+    min-height: 300px !important;
+    max-height: 300px !important;
+}
+
+.insight-box textarea,
 .status-box textarea {
-    min-height: 110px !important;
-    background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(249, 115, 22, 0.08)) !important;
-    font-weight: 600 !important;
+    min-height: 314px !important;
+    max-height: 314px !important;
 }
-.insight-box textarea {
-    min-height: 260px !important;
+
+.status-box textarea {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.06), rgba(59, 130, 246, 0.05)) !important;
 }
-.timeline-card .wrap {
-    border-radius: 16px !important;
+
+.tab-panel {
+    padding: 8px 10px 10px;
+}
+
+.tab-panel .tab-nav {
+    margin-bottom: 8px !important;
+}
+
+.tab-panel button {
+    border-radius: 10px !important;
+}
+
+.timeline-wrap .wrap {
+    border-radius: 12px !important;
     overflow: hidden !important;
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    max-height: 380px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    max-height: 348px;
     overflow-y: auto !important;
-}
-.timeline-card table {
     background: white !important;
 }
-.timeline-card th {
-    background: #eff6ff !important;
-    color: #0f172a !important;
+
+.timeline-wrap table {
+    background: white !important;
+}
+
+.timeline-wrap th {
+    background: #f1f5f9 !important;
+    color: var(--text-main) !important;
     font-weight: 700 !important;
 }
-.timeline-card td,
-.timeline-card th {
+
+.timeline-wrap td,
+.timeline-wrap th {
     white-space: normal !important;
     word-break: break-word !important;
-    line-height: 1.55 !important;
+    line-height: 1.5 !important;
 }
+
 .primary-action button {
-    min-height: 48px;
-    border-radius: 14px !important;
+    min-height: 46px !important;
+    border-radius: 12px !important;
     font-weight: 700 !important;
     font-size: 15px !important;
-    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.20);
+    box-shadow: 0 10px 24px rgba(79, 70, 229, 0.18);
+}
+
+@media (max-width: 1024px) {
+    .header-bar {
+        flex-direction: column;
+    }
+
+    .header-chips {
+        justify-content: flex-start;
+        max-width: none;
+    }
+
+    .side-panel {
+        min-height: auto;
+    }
 }
 """
 
@@ -458,135 +536,129 @@ def _run_segmented_demo(
 
 
 with gr.Blocks(title=APP_TITLE, theme=APP_THEME, css=APP_CSS) as demo:
-    with gr.Column(elem_classes=["app-shell"]):
-        gr.HTML(
-            """
-            <section class="hero-card">
-                <div class="hero-eyebrow">AI 会议同传 Demo</div>
-                <h1 class="hero-title">AI Meeting Interpreter</h1>
-                <p class="hero-subtitle">
-                    麦克风录制 / 上传会议音频，自动完成 ASR、文本清洗、场景化翻译和双语字幕生成。
-                </p>
-                <div class="chip-row">
-                    <span class="chip">Audio Input</span>
-                    <span class="chip">Local ASR</span>
-                    <span class="chip">Transcript Polish</span>
-                    <span class="chip">DeepSeek Translation</span>
-                    <span class="chip">Bilingual Subtitle</span>
-                    <span class="chip">AI Meeting Insights</span>
-                </div>
-            </section>
-            """
-        )
+    gr.HTML(
+        """
+        <section class="header-bar">
+            <div class="header-copy">
+                <h1>AI Meeting Interpreter</h1>
+                <p>麦克风录制 / 上传会议音频，自动完成 ASR、文本清洗、场景化翻译和双语字幕生成。</p>
+            </div>
+            <div class="header-chips">
+                <span class="chip">Audio Input</span>
+                <span class="chip">Local ASR</span>
+                <span class="chip">Transcript Polish</span>
+                <span class="chip">DeepSeek Translation</span>
+                <span class="chip">Bilingual Subtitle</span>
+                <span class="chip">AI Meeting Insights</span>
+            </div>
+        </section>
+        """
+    )
 
-        gr.Markdown(
-            "当前版本为上传/录制式准实时同传 Demo：系统会将完整音频切分为短片段，逐段进行本地 ASR、文本清洗与场景化翻译，并输出双语字幕时间轴和会议理解结果。",
-            elem_classes=["section-label"],
-        )
+    with gr.Row(equal_height=True, elem_classes=["workspace-shell"]):
+        with gr.Column(scale=3, min_width=320, elem_classes=["left-stack"]):
+            with gr.Group(elem_classes=["side-panel"]):
+                gr.HTML('<div class="panel-title">音频输入</div>')
+                gr.HTML('<div class="panel-subtitle">支持麦克风录制完整语音，或直接上传会议音频文件。</div>')
+                stable_audio_input = gr.Audio(
+                    label="麦克风录音 / 上传会议音频",
+                    sources=["microphone", "upload"],
+                    type="filepath",
+                )
 
-        with gr.Row(equal_height=True):
-            with gr.Column(scale=6):
-                with gr.Group(elem_classes=["demo-card"]):
-                    gr.HTML('<h3 class="card-title">音频输入</h3>')
-                    stable_audio_input = gr.Audio(
-                        label="麦克风录音 / 上传会议音频",
-                        sources=["microphone", "upload"],
-                        type="filepath",
-                    )
+                gr.HTML('<div class="panel-title" style="margin-top: 12px;">传译配置</div>')
+                stable_direction_input = gr.Dropdown(
+                    choices=TRANSLATION_DIRECTIONS,
+                    value=TRANSLATION_DIRECTIONS[0],
+                    label="翻译方向",
+                )
+                stable_scene_input = gr.Dropdown(
+                    choices=MEETING_SCENES,
+                    value=MEETING_SCENES[0],
+                    label="会议场景",
+                )
+                stable_mode_input = gr.Dropdown(
+                    choices=PROCESSING_MODES,
+                    value=PROCESSING_MODES[0],
+                    label="处理模式",
+                )
+                stable_scene_strategy_output = gr.Textbox(
+                    label="AI 场景策略",
+                    value=_scene_strategy_text(MEETING_SCENES[0]),
+                    lines=6,
+                    interactive=False,
+                    elem_classes=["compact-box", "strategy-box"],
+                )
+                stable_submit_button = gr.Button(
+                    "开始准实时传译",
+                    variant="primary",
+                    elem_classes=["primary-action"],
+                )
 
-            with gr.Column(scale=5):
-                with gr.Group(elem_classes=["demo-card"]):
-                    gr.HTML('<h3 class="card-title">传译配置</h3>')
-                    stable_direction_input = gr.Dropdown(
-                        choices=TRANSLATION_DIRECTIONS,
-                        value=TRANSLATION_DIRECTIONS[0],
-                        label="翻译方向",
-                    )
-                    stable_scene_input = gr.Dropdown(
-                        choices=MEETING_SCENES,
-                        value=MEETING_SCENES[0],
-                        label="会议场景",
-                    )
-                    stable_mode_input = gr.Dropdown(
-                        choices=PROCESSING_MODES,
-                        value=PROCESSING_MODES[0],
-                        label="处理模式",
-                    )
-                    stable_scene_strategy_output = gr.Textbox(
-                        label="AI 场景策略",
-                        value=_scene_strategy_text(MEETING_SCENES[0]),
-                        lines=5,
-                        interactive=False,
-                        elem_classes=["soft-box"],
-                    )
-                    stable_submit_button = gr.Button(
-                        "开始准实时传译",
-                        variant="primary",
-                        elem_classes=["primary-action"],
-                    )
+        with gr.Column(scale=7, min_width=760, elem_classes=["right-stack"]):
+            with gr.Row(equal_height=True, elem_classes=["output-row"]):
+                with gr.Column(scale=1):
+                    with gr.Group(elem_classes=["content-panel"]):
+                        gr.HTML('<div class="panel-title">原文转写</div>')
+                        stable_source_output = gr.Textbox(
+                            label="原文",
+                            lines=10,
+                            elem_classes=["compact-box", "output-box"],
+                        )
 
-        with gr.Row(equal_height=True):
-            with gr.Column(scale=1):
-                with gr.Group(elem_classes=["demo-card"]):
-                    gr.HTML('<h3 class="card-title">原文转写</h3>')
-                    stable_source_output = gr.Textbox(
-                        label="原文",
-                        lines=8,
-                        elem_classes=["soft-box"],
-                    )
-            with gr.Column(scale=1):
-                with gr.Group(elem_classes=["demo-card"]):
-                    gr.HTML('<h3 class="card-title">译文结果</h3>')
-                    stable_translated_output = gr.Textbox(
-                        label="译文",
-                        lines=8,
-                        elem_classes=["soft-box"],
-                    )
+                with gr.Column(scale=1):
+                    with gr.Group(elem_classes=["content-panel"]):
+                        gr.HTML('<div class="panel-title">译文结果</div>')
+                        stable_translated_output = gr.Textbox(
+                            label="译文",
+                            lines=10,
+                            elem_classes=["compact-box", "output-box"],
+                        )
 
-        with gr.Group(elem_classes=["demo-card"]):
-            gr.HTML('<h3 class="card-title small">处理状态</h3>')
-            stable_status_output = gr.Textbox(
-                label="状态",
-                lines=4,
-                elem_classes=["status-box"],
-            )
+            with gr.Group(elem_classes=["tab-panel"]):
+                with gr.Tabs():
+                    with gr.Tab("🕒 双语字幕时间轴"):
+                        stable_timeline_output = gr.Dataframe(
+                            headers=["时间段", "原文", "译文", "状态"],
+                            datatype=["str", "str", "str", "str"],
+                            label="双语字幕时间轴",
+                            row_count=(1, "dynamic"),
+                            col_count=(4, "fixed"),
+                            elem_classes=["timeline-wrap"],
+                        )
 
-        with gr.Group(elem_classes=["demo-card", "timeline-card"]):
-            gr.HTML('<h3 class="card-title">双语字幕时间轴</h3>')
-            stable_timeline_output = gr.Dataframe(
-                headers=["时间段", "原文", "译文", "状态"],
-                datatype=["str", "str", "str", "str"],
-                label="双语字幕时间轴",
-                row_count=(1, "dynamic"),
-                col_count=(4, "fixed"),
-            )
+                    with gr.Tab("🧠 AI 会议理解"):
+                        stable_insight_output = gr.Textbox(
+                            label="AI 会议理解",
+                            lines=11,
+                            elem_classes=["compact-box", "insight-box"],
+                        )
 
-        with gr.Group(elem_classes=["demo-card"]):
-            gr.HTML('<h3 class="card-title">AI 会议理解</h3>')
-            stable_insight_output = gr.Textbox(
-                label="AI 会议理解",
-                lines=10,
-                elem_classes=["insight-box"],
-            )
+                    with gr.Tab("⚙️ 系统处理状态"):
+                        stable_status_output = gr.Textbox(
+                            label="状态",
+                            lines=11,
+                            elem_classes=["compact-box", "status-box"],
+                        )
 
-        stable_submit_button.click(
-            fn=run_demo,
-            inputs=[stable_audio_input, stable_direction_input, stable_scene_input, stable_mode_input],
-            outputs=[
-                stable_source_output,
-                stable_translated_output,
-                stable_status_output,
-                stable_timeline_output,
-                stable_insight_output,
-            ],
-        )
+    stable_submit_button.click(
+        fn=run_demo,
+        inputs=[stable_audio_input, stable_direction_input, stable_scene_input, stable_mode_input],
+        outputs=[
+            stable_source_output,
+            stable_translated_output,
+            stable_status_output,
+            stable_timeline_output,
+            stable_insight_output,
+        ],
+    )
 
-        stable_scene_input.change(
-            fn=_scene_strategy_text,
-            inputs=[stable_scene_input],
-            outputs=[stable_scene_strategy_output],
-            queue=False,
-        )
+    stable_scene_input.change(
+        fn=_scene_strategy_text,
+        inputs=[stable_scene_input],
+        outputs=[stable_scene_strategy_output],
+        queue=False,
+    )
 
 
 if __name__ == "__main__":
