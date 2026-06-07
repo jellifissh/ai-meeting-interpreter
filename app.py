@@ -16,6 +16,7 @@ APP_TITLE = "AI Meeting Interpreter Demo"
 TRANSLATION_DIRECTIONS = ["中文→英文", "英文→中文"]
 MEETING_SCENES = ["通用会议", "技术会议", "金融会议", "面试场景"]
 PROCESSING_MODES = ["分段字幕（推荐）", "整段翻译"]
+DEFAULT_SEGMENT_DURATION_SECONDS = 8
 
 prompt_builder = PromptBuilder()
 asr_service = LocalASRService()
@@ -50,6 +51,21 @@ def _clean_full_transcript(parts: list[str]) -> str:
     return merged
 
 
+def _clean_chunk_text(text: str) -> str:
+    cleaned = text.replace("\r", " ").replace("\n", " ")
+    cleaned = re.sub(r"[\U0001F300-\U0001FAFF\u2600-\u27BF\uFE0F\u200D]", "", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    cleaned = re.sub(r"\s+([,.;:，。！？；：])", r"\1", cleaned)
+    return cleaned
+
+
+def _build_recent_context(source_parts: list[str], limit: int = 2) -> str | None:
+    recent_parts = [part for part in source_parts[-limit:] if part]
+    if not recent_parts:
+        return None
+    return _clean_full_transcript(recent_parts)
+
+
 def _run_full_audio_demo(
     audio_path: Path,
     context: dict,
@@ -77,7 +93,10 @@ def _run_segmented_demo(
     scene: str,
 ):
     try:
-        segments = asr_service.segment_audio(str(audio_path), segment_duration_seconds=5)
+        segments = asr_service.segment_audio(
+            str(audio_path),
+            segment_duration_seconds=DEFAULT_SEGMENT_DURATION_SECONDS,
+        )
     except Exception as exc:
         full_source, full_translation, full_status, timeline_rows = _run_full_audio_demo(
             audio_path,
@@ -91,71 +110,71 @@ def _run_segmented_demo(
 
     timeline_rows: list[list[str]] = []
     source_parts: list[str] = []
+    translated_parts: list[str] = []
     asr_success_count = 0
     translation_success_count = 0
-    fallback_count = 0
+    fallback_segment_count = 0
 
-    yield "", "", "分段字幕模式已启动，正在逐段处理中...", []
+    total_segments = len(segments)
+    yield "", "", f"正在处理：第 0 / {total_segments} 段，ASR 成功 0 段，翻译成功 0 段。", []
 
     for index, segment in enumerate(segments, start=1):
         segment_context = dict(context)
         asr_result = asr_service.transcribe(audio_path=segment.audio_path, context=segment_context)
+        cleaned_source_text = _clean_chunk_text(asr_result.transcript)
+        recent_context = _build_recent_context(source_parts)
         translation_result = translate_service.translate(
-            source_text=asr_result.transcript,
+            source_text=cleaned_source_text,
             direction=direction,
             meeting_scene=scene,
+            context_text=recent_context,
         )
+        cleaned_translated_text = _clean_chunk_text(translation_result.translated_text)
 
         combined_status = " | ".join(
             part for part in [segment.status, asr_result.status, translation_result.status] if part
         )
-        source_parts.append(asr_result.transcript)
+        source_parts.append(cleaned_source_text)
+        translated_parts.append(cleaned_translated_text)
 
         if not asr_result.used_mock and "success" in asr_result.status.lower():
             asr_success_count += 1
-        else:
-            fallback_count += 1
 
         if not translation_result.used_mock and translation_result.status == "处理成功":
             translation_success_count += 1
-        else:
-            fallback_count += 1
+
+        if asr_result.used_mock or translation_result.used_mock:
+            fallback_segment_count += 1
 
         timeline_rows.append(
             [
                 f"{segment.start_time} - {segment.end_time}",
-                asr_result.transcript,
-                translation_result.translated_text,
+                cleaned_source_text,
+                cleaned_translated_text,
                 combined_status,
             ]
         )
 
-        progress_status = f"分段字幕处理中：已完成 {index}/{len(segments)} 段"
+        cumulative_source = _clean_full_transcript(source_parts)
+        cumulative_translation = _clean_full_transcript(translated_parts)
+        progress_status = (
+            f"正在处理：第 {index} / {total_segments} 段，"
+            f"ASR 成功 {asr_success_count} 段，"
+            f"翻译成功 {translation_success_count} 段。"
+        )
 
-        yield "", "", progress_status, list(timeline_rows)
+        yield cumulative_source, cumulative_translation, progress_status, list(timeline_rows)
 
     full_source = _clean_full_transcript(source_parts)
-    final_translation_result = translate_service.translate(
-        source_text=full_source,
-        direction=direction,
-        meeting_scene=scene,
-    )
-    full_translation = final_translation_result.translated_text
-
-    if not final_translation_result.used_mock and final_translation_result.status == "处理成功":
-        final_translation_status = "整体翻译成功"
-    else:
-        final_translation_status = "整体翻译使用 fallback"
-        fallback_count += 1
+    full_translation = _clean_full_transcript(translated_parts)
 
     final_status = (
-        f"处理完成：共 {len(segments)} 段，"
+        f"处理完成：共 {total_segments} 段，"
         f"ASR 成功 {asr_success_count} 段，"
         f"翻译成功 {translation_success_count} 段。"
     )
-    if fallback_count:
-        final_status += f" 失败段数：{fallback_count}，已使用 fallback。"
-    final_status += f" {final_translation_status}。"
+    if fallback_segment_count:
+        final_status += f" 失败段数：{fallback_segment_count}，已使用 fallback。"
 
     yield (
         full_source,

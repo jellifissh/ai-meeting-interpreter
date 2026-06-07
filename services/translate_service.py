@@ -57,7 +57,13 @@ class TranslateService:
     def __init__(self, prompt_builder: PromptBuilder | None = None) -> None:
         self.prompt_builder = prompt_builder or PromptBuilder()
 
-    def translate(self, source_text: str, direction: str, meeting_scene: str) -> TranslationResult:
+    def translate(
+        self,
+        source_text: str,
+        direction: str,
+        meeting_scene: str,
+        context_text: str | None = None,
+    ) -> TranslationResult:
         api_key = self._read_env("DEEPSEEK_API_KEY", "deepseek-api-key")
 
         if not api_key:
@@ -73,6 +79,7 @@ class TranslateService:
             source_text=source_text,
             direction=direction,
             meeting_scene=meeting_scene,
+            recent_context=context_text,
         )
 
         try:

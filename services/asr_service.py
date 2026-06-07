@@ -126,7 +126,7 @@ class LocalASRService:
                 used_mock=True,
             )
 
-    def segment_audio(self, audio_path: str, segment_duration_seconds: int = 5) -> list[AudioSegment]:
+    def segment_audio(self, audio_path: str, segment_duration_seconds: int = 8) -> list[AudioSegment]:
         return self.audio_preprocessor.segment_audio(audio_path, segment_duration_seconds=segment_duration_seconds)
 
     def _prepare_model_dir(self) -> Path:
@@ -295,7 +295,7 @@ class AudioPreprocessor:
 
         return output_path
 
-    def segment_audio(self, audio_path: str, segment_duration_seconds: int = 5) -> list[AudioSegment]:
+    def segment_audio(self, audio_path: str, segment_duration_seconds: int = 8) -> list[AudioSegment]:
         source_path = Path(audio_path)
         if not source_path.exists():
             raise FileNotFoundError(f"Audio file not found: {source_path}")

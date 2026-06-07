@@ -26,6 +26,7 @@ class PromptBuilder:
         source_text: str,
         direction: str,
         meeting_scene: str,
+        recent_context: str | None = None,
     ) -> list[dict[str, str]]:
         direction_hint = self._DIRECTION_HINTS.get(direction, "Translate the input for meeting subtitles.")
         scene_hint = self._SCENE_HINTS.get(meeting_scene, "Keep the translation clear and suitable for a live meeting.")
@@ -34,17 +35,32 @@ class PromptBuilder:
             "You are a professional real-time meeting interpreter. "
             f"{direction_hint} "
             f"{scene_hint} "
+            "Use recent context only to improve continuity and subtitle naturalness. "
+            "If the current chunk is a partial sentence, translate it naturally based on context, "
+            "but only translate the current chunk itself. "
             "Return only the translation text. "
             "Do not explain. Do not use Markdown. "
             "Do not add prefixes such as 'Translation' or '以下是翻译'."
         )
 
-        user_prompt = (
-            f"Translation direction: {direction}\n"
-            f"Meeting scene: {meeting_scene}\n"
-            "Source text:\n"
-            f"{source_text}"
+        user_prompt_lines = [
+            f"Translation direction: {direction}",
+            f"Meeting scene: {meeting_scene}",
+        ]
+        if recent_context:
+            user_prompt_lines.extend(
+                [
+                    "Recent context for continuity only:",
+                    recent_context,
+                ]
+            )
+        user_prompt_lines.extend(
+            [
+                "Current chunk to translate:",
+                source_text,
+            ]
         )
+        user_prompt = "\n".join(user_prompt_lines)
 
         return [
             {"role": "system", "content": system_prompt},
