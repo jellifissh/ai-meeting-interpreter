@@ -1,6 +1,7 @@
 from pathlib import Path
 import re
 import uuid
+from difflib import SequenceMatcher
 
 import gradio as gr
 import numpy as np
@@ -23,6 +24,8 @@ DEFAULT_SEGMENT_DURATION_SECONDS = 8
 MIC_STREAM_EVERY_SECONDS = 4
 MIC_STREAM_TIME_LIMIT_SECONDS = 60
 MIC_STREAM_CHUNK_DIR = Path.cwd() / "runtime" / "mic_stream_chunks"
+MIC_INVALID_CHUNK_THRESHOLD = 3
+MIC_SIMILARITY_THRESHOLD = 0.85
 
 prompt_builder = PromptBuilder()
 asr_service = LocalASRService()
@@ -95,7 +98,44 @@ def _format_realtime_rows(rows: list[list[str]]) -> list[list[str]]:
 
 
 def _reset_realtime_state():
-    return [], "正在监听麦克风...", [], "", 0
+    return [], "正在监听麦克风...", [], "", 0, 0
+
+
+def _count_cjk_chars(text: str) -> int:
+    return sum(1 for char in text if "\u4e00" <= char <= "\u9fff")
+
+
+def _count_english_words(text: str) -> int:
+    return len(re.findall(r"[A-Za-z]+(?:'[A-Za-z]+)?", text))
+
+
+def _is_realtime_chunk_too_short(text: str) -> bool:
+    return _count_cjk_chars(text) < 5 and _count_english_words(text) < 5
+
+
+def _is_similar_realtime_transcript(current_text: str, previous_text: str) -> bool:
+    if not current_text or not previous_text:
+        return False
+    similarity = SequenceMatcher(None, current_text.lower(), previous_text.lower()).ratio()
+    return similarity >= MIC_SIMILARITY_THRESHOLD
+
+
+def _build_realtime_idle_status(invalid_chunk_streak: int, default_status: str) -> str:
+    if invalid_chunk_streak >= MIC_INVALID_CHUNK_THRESHOLD:
+        return "未检测到新的有效语音片段，请尝试说 5-10 秒短句，或使用稳定模式处理完整音频。"
+    return default_status
+
+
+def _skip_realtime_chunk(
+    rows: list[list[str]],
+    previous_transcript: str,
+    current_counter: int,
+    invalid_chunk_streak: int,
+    default_status: str,
+):
+    next_invalid_streak = invalid_chunk_streak + 1
+    status = _build_realtime_idle_status(next_invalid_streak, default_status)
+    return _format_realtime_rows(rows), status, rows, previous_transcript, current_counter, next_invalid_streak
 
 
 def process_streaming_chunk(
@@ -105,18 +145,33 @@ def process_streaming_chunk(
     subtitle_rows: list[list[str]] | None,
     last_transcript: str | None,
     counter: int | None,
+    invalid_chunk_streak: int | None,
 ):
     rows = list(subtitle_rows or [])
     previous_transcript = (last_transcript or "").strip()
     current_counter = int(counter or 0)
+    current_invalid_streak = int(invalid_chunk_streak or 0)
 
     if audio_chunk is None:
-        return _format_realtime_rows(rows), "正在监听麦克风...", rows, previous_transcript, current_counter
+        return (
+            _format_realtime_rows(rows),
+            _build_realtime_idle_status(current_invalid_streak, "正在监听麦克风..."),
+            rows,
+            previous_transcript,
+            current_counter,
+            current_invalid_streak,
+        )
 
     try:
         chunk_path = _save_stream_chunk(audio_chunk)
         if chunk_path is None:
-            return _format_realtime_rows(rows), "正在监听麦克风...", rows, previous_transcript, current_counter
+            return _skip_realtime_chunk(
+                rows,
+                previous_transcript,
+                current_counter,
+                current_invalid_streak,
+                "正在监听麦克风...",
+            )
     except Exception as exc:
         return (
             _format_realtime_rows(rows),
@@ -124,6 +179,7 @@ def process_streaming_chunk(
             rows,
             previous_transcript,
             current_counter,
+            current_invalid_streak,
         )
 
     context = prompt_builder.build(direction=direction, scene=scene, audio_filename=chunk_path.name)
@@ -131,19 +187,49 @@ def process_streaming_chunk(
     cleaned_transcript = _clean_chunk_text(asr_result.transcript)
 
     if not cleaned_transcript:
-        return _format_realtime_rows(rows), "ASR transcript 为空，已跳过。", rows, previous_transcript, current_counter
-
-    if len(cleaned_transcript) < 3:
-        return (
-            _format_realtime_rows(rows),
-            f"识别文本过短，已跳过：{cleaned_transcript}",
+        return _skip_realtime_chunk(
             rows,
             previous_transcript,
             current_counter,
+            current_invalid_streak,
+            "ASR transcript 为空，已跳过。",
+        )
+
+    if _is_realtime_chunk_too_short(cleaned_transcript):
+        return _skip_realtime_chunk(
+            rows,
+            previous_transcript,
+            current_counter,
+            current_invalid_streak,
+            f"识别文本过短，已跳过：{cleaned_transcript}",
         )
 
     if cleaned_transcript == previous_transcript:
-        return _format_realtime_rows(rows), "检测到重复 transcript，已跳过。", rows, previous_transcript, current_counter
+        return _skip_realtime_chunk(
+            rows,
+            previous_transcript,
+            current_counter,
+            current_invalid_streak,
+            "检测到重复 transcript，已跳过。",
+        )
+
+    if previous_transcript and cleaned_transcript in previous_transcript:
+        return _skip_realtime_chunk(
+            rows,
+            previous_transcript,
+            current_counter,
+            current_invalid_streak,
+            "检测到子串级重复 transcript，已跳过。",
+        )
+
+    if _is_similar_realtime_transcript(cleaned_transcript, previous_transcript):
+        return _skip_realtime_chunk(
+            rows,
+            previous_transcript,
+            current_counter,
+            current_invalid_streak,
+            "检测到高相似 transcript，已跳过。",
+        )
 
     translation_result = translate_service.translate(
         source_text=cleaned_transcript,
@@ -164,7 +250,7 @@ def process_streaming_chunk(
     elif translation_result.used_mock:
         status += f" {translation_result.status}"
 
-    return _format_realtime_rows(rows), status, rows, cleaned_transcript, current_counter
+    return _format_realtime_rows(rows), status, rows, cleaned_transcript, current_counter, 0
 
 
 def _run_full_audio_demo(
@@ -343,14 +429,15 @@ with gr.Blocks(title=APP_TITLE) as demo:
                 ],
             )
 
-        with gr.Tab("麦克风实时传译（实验）"):
+        with gr.Tab("麦克风短句实时传译（实验）"):
             gr.Markdown(
-                "该模式基于 Gradio microphone streaming audio chunk 实现，适合演示麦克风实时输入到字幕动态生成的流程，不是工业级 WebSocket 实时同传系统。"
+                "该模式适合 5-10 秒短句演示。系统会尝试对麦克风音频 chunk 进行 ASR 和翻译，并追加字幕。长音频或完整会议请使用稳定模式。"
             )
 
             realtime_subtitle_state = gr.State([])
             realtime_last_transcript_state = gr.State("")
             realtime_counter_state = gr.State(0)
+            realtime_invalid_chunk_state = gr.State(0)
 
             with gr.Row():
                 realtime_audio_input = gr.Audio(
@@ -390,6 +477,7 @@ with gr.Blocks(title=APP_TITLE) as demo:
                     realtime_subtitle_state,
                     realtime_last_transcript_state,
                     realtime_counter_state,
+                    realtime_invalid_chunk_state,
                 ],
                 outputs=[
                     realtime_timeline_output,
@@ -397,6 +485,7 @@ with gr.Blocks(title=APP_TITLE) as demo:
                     realtime_subtitle_state,
                     realtime_last_transcript_state,
                     realtime_counter_state,
+                    realtime_invalid_chunk_state,
                 ],
                 stream_every=MIC_STREAM_EVERY_SECONDS,
                 time_limit=MIC_STREAM_TIME_LIMIT_SECONDS,
@@ -413,6 +502,7 @@ with gr.Blocks(title=APP_TITLE) as demo:
                     realtime_subtitle_state,
                     realtime_last_transcript_state,
                     realtime_counter_state,
+                    realtime_invalid_chunk_state,
                 ],
                 queue=False,
             )

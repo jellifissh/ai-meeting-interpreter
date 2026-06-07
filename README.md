@@ -1,6 +1,6 @@
 # AI Meeting Interpreter Demo
 
-一个基于 Python + Gradio 的 AI 同声传译助手 Demo。当前版本重点演示“麦克风录制式准实时同传”体验：用户可以录制或上传会议音频，系统会将音频切分为短片段，逐段执行本地 ASR 和 DeepSeek 翻译，并动态生成双语字幕时间轴。
+一个基于 Python + Gradio 的 AI 同声传译助手 Demo。当前版本包含两个入口：稳定模式用于完整音频的分段字幕演示，实验模式用于 5-10 秒短句的麦克风实时字幕演示。
 
 ## Demo Video
 
@@ -12,11 +12,12 @@
 
 ## 当前版本说明
 
-- 当前版本是麦克风录制式准实时同传 Demo
+- 稳定模式适合完整音频和正式演示
+- 实验麦克风模式适合短句实时字幕演示
 - 支持麦克风录音 / 上传音频
 - 支持分段字幕时间轴动态输出
 - 使用本地 ASR + DeepSeek 翻译
-- 不是工业级 WebSocket 实时系统
+- 当前不是工业级 WebSocket 实时系统
 - 后续可扩展云端 Streaming ASR、WebSocket、VAD、TTS
 
 ## 当前能力
@@ -25,7 +26,8 @@
 - 本地 ASR 识别原文
 - DeepSeek 翻译译文
 - 页面展示双语字幕时间轴
-- 动态逐段输出 near-real-time segmented interpreter demo
+- 稳定模式：完整音频 -> 分段字幕时间轴
+- 实验模式：5-10 秒短句 -> 麦克风实时字幕追加
 - ASR 初始化失败时自动 fallback 到 mock ASR
 - 翻译失败或未配置 API Key 时自动 fallback 到 mock translation
 
@@ -52,7 +54,8 @@ python app.py
 ## 说明
 
 - 当前版本支持麦克风录音和上传音频
-- 当前版本是 near-real-time segmented interpreter demo
+- 稳定模式适合完整音频和正式演示
+- 实验麦克风模式适合 5-10 秒短句实时字幕演示
 - 当前版本不是工业级 WebSocket 实时系统
 - 通过短音频切片 + 动态逐段输出模拟同传字幕体验
 - 首次运行本地 ASR 时，FunASR / SenseVoiceSmall 可能会下载模型文件
