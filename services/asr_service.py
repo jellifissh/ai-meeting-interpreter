@@ -245,6 +245,9 @@ class AudioPreprocessor:
     def __init__(self) -> None:
         self.cache_dir = Path.cwd() / "runtime" / "audio_cache"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.ffmpeg_error_message = (
+            "ffmpeg not found. Put ffmpeg.exe under runtime/ffmpeg/ or install ffmpeg in PATH."
+        )
 
     def convert_to_16k_mono_wav(self, audio_path: str) -> Path:
         source_path = Path(audio_path)
@@ -295,6 +298,4 @@ class AudioPreprocessor:
         if system_ffmpeg:
             return Path(system_ffmpeg)
 
-        raise FileNotFoundError(
-            "ffmpeg not found. Put ffmpeg.exe under runtime/ffmpeg/ or install ffmpeg in PATH."
-        )
+        raise FileNotFoundError(self.ffmpeg_error_message)
