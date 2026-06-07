@@ -3,7 +3,7 @@ from pathlib import Path
 import gradio as gr
 from dotenv import load_dotenv
 
-from services.asr_service import AudioSegment, LocalASRService
+from services.asr_service import LocalASRService
 from services.prompt_builder import PromptBuilder
 from services.translate_service import TranslateService
 
@@ -26,17 +26,19 @@ def run_demo(
     direction: str,
     scene: str,
     processing_mode: str,
-) -> tuple[str, str, str, list[list[str]]]:
+):
     if not audio_file:
-        return "", "", "请先上传音频文件", []
+        yield "", "", "请先上传或录制音频", []
+        return
 
     audio_path = Path(audio_file)
     context = prompt_builder.build(direction=direction, scene=scene, audio_filename=audio_path.name)
 
     if processing_mode == "分段字幕（推荐）":
-        return _run_segmented_demo(audio_path, context, direction, scene)
+        yield from _run_segmented_demo(audio_path, context, direction, scene)
+        return
 
-    return _run_full_audio_demo(audio_path, context, direction, scene)
+    yield _run_full_audio_demo(audio_path, context, direction, scene)
 
 
 def _run_full_audio_demo(
@@ -64,20 +66,28 @@ def _run_segmented_demo(
     context: dict,
     direction: str,
     scene: str,
-) -> tuple[str, str, str, list[list[str]]]:
+):
     try:
         segments = asr_service.segment_audio(str(audio_path), segment_duration_seconds=5)
     except Exception as exc:
-        full_source, full_translation, full_status, timeline_rows = _run_full_audio_demo(audio_path, context, direction, scene)
+        full_source, full_translation, full_status, timeline_rows = _run_full_audio_demo(
+            audio_path,
+            context,
+            direction,
+            scene,
+        )
         fallback_status = f"Segmented subtitle mode failed: {exc}. Fallback to full-audio mode. | {full_status}"
-        return full_source, full_translation, fallback_status, timeline_rows
+        yield full_source, full_translation, fallback_status, timeline_rows
+        return
 
     timeline_rows: list[list[str]] = []
     source_parts: list[str] = []
     translation_parts: list[str] = []
     status_parts: list[str] = []
 
-    for segment in segments:
+    yield "", "", "分段字幕模式已启动，正在逐段处理中...", []
+
+    for index, segment in enumerate(segments, start=1):
         segment_context = dict(context)
         asr_result = asr_service.transcribe(audio_path=segment.audio_path, context=segment_context)
         translation_result = translate_service.translate(
@@ -92,6 +102,7 @@ def _run_segmented_demo(
         source_parts.append(asr_result.transcript)
         translation_parts.append(translation_result.translated_text)
         status_parts.append(combined_status)
+
         timeline_rows.append(
             [
                 f"{segment.start_time} - {segment.end_time}",
@@ -101,24 +112,35 @@ def _run_segmented_demo(
             ]
         )
 
-    full_source = "\n".join(part for part in source_parts if part.strip())
-    full_translation = "\n".join(part for part in translation_parts if part.strip())
-    overall_status = "Segmented subtitle mode completed"
-    if status_parts:
-        overall_status = f"{overall_status} | {' | '.join(status_parts)}"
+        full_source = "\n".join(part for part in source_parts if part.strip())
+        full_translation = "\n".join(part for part in translation_parts if part.strip())
+        progress_status = f"Segmented subtitle mode running ({index}/{len(segments)}) | {combined_status}"
 
-    return full_source, full_translation, overall_status, timeline_rows
+        yield full_source, full_translation, progress_status, list(timeline_rows)
+
+    final_status = "Segmented subtitle mode completed"
+    if status_parts:
+        final_status = f"{final_status} | {' | '.join(status_parts)}"
+
+    yield (
+        "\n".join(part for part in source_parts if part.strip()),
+        "\n".join(part for part in translation_parts if part.strip()),
+        final_status,
+        list(timeline_rows),
+    )
 
 
 with gr.Blocks(title=APP_TITLE) as demo:
     gr.Markdown(f"# {APP_TITLE}")
     gr.Markdown(
-        "AI Pipeline: Local ASR(SenseVoiceSmall/FunASR) -> DeepSeek LLM Translation -> Bilingual Subtitles"
+        "当前版本为上传/录制式准实时同传 Demo：系统将音频切分为短片段，逐段进行本地 ASR 和 DeepSeek 翻译，并动态生成双语字幕。"
     )
-    gr.Markdown("上传音频文件，执行本地语音识别和 DeepSeek 翻译，返回双语字幕结果。")
+    gr.Markdown(
+        "AI Pipeline: Local ASR(SenseVoiceSmall/FunASR) -> DeepSeek LLM Translation -> Bilingual Subtitle Timeline"
+    )
 
     with gr.Row():
-        audio_input = gr.Audio(label="会议音频", type="filepath")
+        audio_input = gr.Audio(label="会议音频（支持上传或麦克风录制）", type="filepath")
         with gr.Column():
             direction_input = gr.Dropdown(
                 choices=TRANSLATION_DIRECTIONS,
