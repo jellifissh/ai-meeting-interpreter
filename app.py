@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 import gradio as gr
 from dotenv import load_dotenv
@@ -39,6 +40,14 @@ def run_demo(
         return
 
     yield _run_full_audio_demo(audio_path, context, direction, scene)
+
+
+def _clean_full_transcript(parts: list[str]) -> str:
+    merged = " ".join(part.strip() for part in parts if part and part.strip())
+    merged = re.sub(r"\s+", " ", merged).strip()
+    merged = re.sub(r"([。！？!?])\s+", r"\1", merged)
+    merged = re.sub(r"\s+([,.;:，。！？；：])", r"\1", merged)
+    return merged
 
 
 def _run_full_audio_demo(
@@ -82,8 +91,9 @@ def _run_segmented_demo(
 
     timeline_rows: list[list[str]] = []
     source_parts: list[str] = []
-    translation_parts: list[str] = []
-    status_parts: list[str] = []
+    asr_success_count = 0
+    translation_success_count = 0
+    fallback_count = 0
 
     yield "", "", "分段字幕模式已启动，正在逐段处理中...", []
 
@@ -100,8 +110,16 @@ def _run_segmented_demo(
             part for part in [segment.status, asr_result.status, translation_result.status] if part
         )
         source_parts.append(asr_result.transcript)
-        translation_parts.append(translation_result.translated_text)
-        status_parts.append(combined_status)
+
+        if not asr_result.used_mock and "success" in asr_result.status.lower():
+            asr_success_count += 1
+        else:
+            fallback_count += 1
+
+        if not translation_result.used_mock and translation_result.status == "处理成功":
+            translation_success_count += 1
+        else:
+            fallback_count += 1
 
         timeline_rows.append(
             [
@@ -112,19 +130,36 @@ def _run_segmented_demo(
             ]
         )
 
-        full_source = "\n".join(part for part in source_parts if part.strip())
-        full_translation = "\n".join(part for part in translation_parts if part.strip())
-        progress_status = f"Segmented subtitle mode running ({index}/{len(segments)}) | {combined_status}"
+        progress_status = f"分段字幕处理中：已完成 {index}/{len(segments)} 段"
 
-        yield full_source, full_translation, progress_status, list(timeline_rows)
+        yield "", "", progress_status, list(timeline_rows)
 
-    final_status = "Segmented subtitle mode completed"
-    if status_parts:
-        final_status = f"{final_status} | {' | '.join(status_parts)}"
+    full_source = _clean_full_transcript(source_parts)
+    final_translation_result = translate_service.translate(
+        source_text=full_source,
+        direction=direction,
+        meeting_scene=scene,
+    )
+    full_translation = final_translation_result.translated_text
+
+    if not final_translation_result.used_mock and final_translation_result.status == "处理成功":
+        final_translation_status = "整体翻译成功"
+    else:
+        final_translation_status = "整体翻译使用 fallback"
+        fallback_count += 1
+
+    final_status = (
+        f"处理完成：共 {len(segments)} 段，"
+        f"ASR 成功 {asr_success_count} 段，"
+        f"翻译成功 {translation_success_count} 段。"
+    )
+    if fallback_count:
+        final_status += f" 失败段数：{fallback_count}，已使用 fallback。"
+    final_status += f" {final_translation_status}。"
 
     yield (
-        "\n".join(part for part in source_parts if part.strip()),
-        "\n".join(part for part in translation_parts if part.strip()),
+        full_source,
+        full_translation,
         final_status,
         list(timeline_rows),
     )
