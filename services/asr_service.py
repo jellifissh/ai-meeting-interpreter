@@ -1,5 +1,7 @@
 import os
 import shutil
+import subprocess
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -48,6 +50,7 @@ class LocalASRService:
         self.postprocess = None
         self.init_error: str | None = None
         self.model_dir: Path | None = None
+        self.audio_preprocessor = AudioPreprocessor()
         self.initialize()
 
     def initialize(self) -> None:
@@ -77,9 +80,9 @@ class LocalASRService:
     def transcribe(self, audio_path: str, context: dict | None = None) -> ASRResult:
         if self.model is None:
             fallback = self.mock_service.transcribe(audio_path=audio_path, context=context)
-            status = "Local ASR initialization failed, fallback to mock ASR."
+            status = "Local ASR failed: initialization failed, fallback to mock ASR."
             if self.init_error:
-                status = f"{status} Error: {self.init_error}"
+                status = f"Local ASR failed: {self._summarize_error(self.init_error)}, fallback to mock ASR."
             return ASRResult(
                 transcript=fallback.transcript,
                 status=status,
@@ -87,14 +90,15 @@ class LocalASRService:
             )
 
         try:
+            normalized_audio_path = self.audio_preprocessor.convert_to_16k_mono_wav(audio_path)
             result = self.model.generate(
-                input=audio_path,
+                input=str(normalized_audio_path),
                 cache={},
                 language="auto",
                 use_itn=True,
                 batch_size_s=60,
             )
-            raw_text = (result[0].get("text", "") if result else "").strip()
+            raw_text = self._extract_text(result)
             transcript = self.postprocess(raw_text).strip() if self.postprocess else raw_text
             transcript = self._maybe_fix_mojibake(transcript)
 
@@ -103,14 +107,14 @@ class LocalASRService:
 
             return ASRResult(
                 transcript=transcript,
-                status="本地语音识别成功",
+                status="Local ASR success",
                 used_mock=False,
             )
-        except Exception:
+        except Exception as exc:
             fallback = self.mock_service.transcribe(audio_path=audio_path, context=context)
             return ASRResult(
                 transcript=fallback.transcript,
-                status="Local ASR transcription failed, fallback to mock ASR.",
+                status=f"Local ASR failed: {self._summarize_error(exc)}, fallback to mock ASR.",
                 used_mock=True,
             )
 
@@ -194,3 +198,103 @@ class LocalASRService:
             return fixed if fixed else text
         except Exception:
             return text
+
+    @staticmethod
+    def _summarize_error(exc: Exception | str) -> str:
+        message = str(exc).strip().replace("\r", " ").replace("\n", " ")
+        return message[:180] if len(message) > 180 else message
+
+    def _extract_text(self, result: object) -> str:
+        if isinstance(result, dict):
+            return self._extract_text_from_item(result)
+
+        if isinstance(result, list):
+            texts = [self._extract_text_from_item(item) for item in result]
+            merged = " ".join(text for text in texts if text.strip())
+            return merged.strip()
+
+        raise TypeError(f"Unexpected ASR result type: {type(result).__name__}")
+
+    def _extract_text_from_item(self, item: object) -> str:
+        if not isinstance(item, dict):
+            return str(item).strip()
+
+        if isinstance(item.get("text"), str) and item["text"].strip():
+            return item["text"].strip()
+
+        sentence_info = item.get("sentence_info")
+        if isinstance(sentence_info, list):
+            parts = []
+            for sentence in sentence_info:
+                if isinstance(sentence, dict):
+                    text = str(sentence.get("text", "")).strip()
+                    if text:
+                        parts.append(text)
+            if parts:
+                return " ".join(parts).strip()
+
+        if isinstance(item.get("sentence_text"), str) and item["sentence_text"].strip():
+            return item["sentence_text"].strip()
+
+        return ""
+
+
+class AudioPreprocessor:
+    """Normalize uploaded audio to a format that local ASR handles reliably."""
+
+    def __init__(self) -> None:
+        self.cache_dir = Path.cwd() / "runtime" / "audio_cache"
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def convert_to_16k_mono_wav(self, audio_path: str) -> Path:
+        source_path = Path(audio_path)
+        if not source_path.exists():
+            raise FileNotFoundError(f"Audio file not found: {source_path}")
+
+        output_path = self.cache_dir / f"{source_path.stem}_{uuid.uuid4().hex}_16k_mono.wav"
+        ffmpeg_path = self._resolve_ffmpeg_path()
+
+        command = [
+            str(ffmpeg_path),
+            "-y",
+            "-i",
+            str(source_path),
+            "-vn",
+            "-acodec",
+            "pcm_s16le",
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            str(output_path),
+        ]
+
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if completed.returncode != 0 or not output_path.exists():
+            stderr = completed.stderr.strip() or completed.stdout.strip() or "ffmpeg conversion failed"
+            raise RuntimeError(stderr)
+
+        return output_path
+
+    def _resolve_ffmpeg_path(self) -> Path:
+        candidates = [
+            Path.cwd() / "runtime" / "ffmpeg" / "ffmpeg.exe",
+            Path.cwd() / "runtime" / "ffmpeg" / "bin" / "ffmpeg.exe",
+        ]
+
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+
+        system_ffmpeg = shutil.which("ffmpeg")
+        if system_ffmpeg:
+            return Path(system_ffmpeg)
+
+        raise FileNotFoundError(
+            "ffmpeg not found. Put ffmpeg.exe under runtime/ffmpeg/ or install ffmpeg in PATH."
+        )
