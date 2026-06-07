@@ -25,216 +25,112 @@ APP_THEME = gr.themes.Soft(
     primary_hue="indigo",
     secondary_hue="blue",
     neutral_hue="slate",
+).set(
+    body_background_fill="*neutral_50",
+    block_background_fill="white",
+    block_border_width="0px",
+    block_label_background_fill="transparent",
+    block_label_text_color="*neutral_800",
+    block_label_text_weight="600",
+    block_title_background_fill="transparent",
+    block_shadow="0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)",
 )
+
 APP_CSS = """
 :root {
-    --page-bg: #f5f7fb;
-    --panel-bg: rgba(255, 255, 255, 0.92);
-    --panel-border: rgba(15, 23, 42, 0.08);
-    --panel-shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
     --text-main: #0f172a;
     --text-sub: #64748b;
     --chip-bg: #eef2ff;
     --chip-text: #4338ca;
 }
 
-body,
-.gradio-container {
-    background:
-        radial-gradient(circle at top left, rgba(79, 70, 229, 0.10), transparent 24%),
-        radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 20%),
-        linear-gradient(180deg, #f8fafc 0%, #eef3fb 100%);
+body, .gradio-container {
+    background-color: #f8fafc !important;
+    background-image: radial-gradient(#e2e8f0 1px, transparent 1px) !important;
+    background-size: 20px 20px !important;
 }
 
 .gradio-container {
-    max-width: 1480px !important;
+    max-width: 1400px !important;
     margin: 0 auto;
-    padding: 12px 14px 14px !important;
+    padding: 30px 20px !important;
 }
 
-.gr-block,
-.gr-group,
-.block {
-    border: none !important;
-    box-shadow: none !important;
-}
-
-.workspace-shell {
-    gap: 12px !important;
-}
-
+/* 顶部 Header 重新排版，更加紧凑现代 */
 .header-bar {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    padding: 14px 18px;
-    margin-bottom: 12px;
-    border: 1px solid var(--panel-border);
-    border-radius: 18px;
-    background: var(--panel-bg);
-    box-shadow: var(--panel-shadow);
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .header-copy h1 {
     margin: 0;
     color: var(--text-main);
-    font-size: 28px;
-    line-height: 1.15;
+    font-size: 26px;
     font-weight: 800;
+    letter-spacing: -0.5px;
 }
 
 .header-copy p {
-    margin: 6px 0 0;
+    margin: 4px 0 0;
     color: var(--text-sub);
-    font-size: 14px;
-    line-height: 1.6;
+    font-size: 13px;
 }
 
 .header-chips {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
     gap: 8px;
-    max-width: 520px;
 }
 
 .chip {
-    padding: 5px 10px;
-    border-radius: 999px;
-    border: 1px solid rgba(79, 70, 229, 0.10);
+    padding: 6px 12px;
+    border-radius: 8px;
     background: var(--chip-bg);
     color: var(--chip-text);
     font-size: 12px;
     font-weight: 600;
 }
 
-.side-panel,
-.content-panel,
-.tab-panel {
-    border: 1px solid var(--panel-border);
-    background: var(--panel-bg);
-    box-shadow: var(--panel-shadow);
-    border-radius: 18px;
+/* 杀掉所有残留的内部边框 */
+.gr-block, .gr-group, .block {
+    border: none !important;
 }
 
-.side-panel,
-.content-panel {
-    padding: 12px;
-}
-
-.side-panel {
-    min-height: 760px;
-}
-
-.panel-title {
-    margin: 0 0 10px;
-    color: var(--text-main);
-    font-size: 16px;
-    font-weight: 700;
-}
-
-.panel-subtitle {
-    margin: -4px 0 10px;
-    color: var(--text-sub);
-    font-size: 12px;
-    line-height: 1.5;
-}
-
-.left-stack,
-.right-stack,
-.output-row {
-    gap: 12px !important;
-}
-
-.compact-box textarea {
+/* 统一输入框和文本域的质感 */
+textarea, .wrap, input {
     border-radius: 12px !important;
-    border: 1px solid rgba(15, 23, 42, 0.08) !important;
-    background: #fbfcfe !important;
-    font-size: 15px !important;
-    line-height: 1.65 !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #f8fafc !important;
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+    padding: 12px !important;
 }
 
-.strategy-box textarea {
-    min-height: 148px !important;
-    max-height: 148px !important;
-}
-
-.output-box textarea {
-    min-height: 300px !important;
-    max-height: 300px !important;
-}
-
-.insight-box textarea,
-.status-box textarea {
-    min-height: 314px !important;
-    max-height: 314px !important;
-}
-
-.status-box textarea {
-    background: linear-gradient(135deg, rgba(79, 70, 229, 0.06), rgba(59, 130, 246, 0.05)) !important;
-}
-
-.tab-panel {
-    padding: 8px 10px 10px;
-}
-
-.tab-panel .tab-nav {
-    margin-bottom: 8px !important;
-}
-
-.tab-panel button {
-    border-radius: 10px !important;
-}
-
-.timeline-wrap .wrap {
-    border-radius: 12px !important;
-    overflow: hidden !important;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    max-height: 348px;
-    overflow-y: auto !important;
-    background: white !important;
-}
-
-.timeline-wrap table {
-    background: white !important;
-}
-
-.timeline-wrap th {
-    background: #f1f5f9 !important;
-    color: var(--text-main) !important;
-    font-weight: 700 !important;
-}
-
-.timeline-wrap td,
-.timeline-wrap th {
-    white-space: normal !important;
-    word-break: break-word !important;
-    line-height: 1.5 !important;
-}
-
+/* 按钮更加醒目 */
 .primary-action button {
-    min-height: 46px !important;
+    background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%) !important;
+    border: none !important;
+    color: white !important;
+    min-height: 48px !important;
     border-radius: 12px !important;
-    font-weight: 700 !important;
-    font-size: 15px !important;
-    box-shadow: 0 10px 24px rgba(79, 70, 229, 0.18);
+    font-weight: 600 !important;
+    font-size: 16px !important;
+    box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3) !important;
+    transition: transform 0.1s ease !important;
 }
 
-@media (max-width: 1024px) {
-    .header-bar {
-        flex-direction: column;
-    }
-
-    .header-chips {
-        justify-content: flex-start;
-        max-width: none;
-    }
-
-    .side-panel {
-        min-height: auto;
-    }
+.primary-action button:active {
+    transform: scale(0.98) !important;
 }
+
+/* 控制高度，防止撑破 */
+.output-box textarea { height: 400px !important; }
+.strategy-box textarea { height: 120px !important; background: #fffbeb !important; border-color: #fde68a !important; color: #92400e !important;}
 """
 
 prompt_builder = PromptBuilder()
