@@ -1,10 +1,10 @@
 # AI Meeting Interpreter Demo
 
-一个基于 Python + Gradio 的 AI 会议同传 Demo。当前版本支持上传或录制音频，优先使用本地 SenseVoiceSmall / FunASR 做离线语音识别，再调用 DeepSeek 做翻译；如果本地 ASR 或 DeepSeek 不可用，会自动 fallback，保证页面不崩。
+一个基于 Python + Gradio 的 AI 会议同传 Demo。当前版本支持麦克风录音或上传音频，优先使用本地 SenseVoiceSmall / FunASR 做离线语音识别，再调用 DeepSeek 做翻译；如果本地 ASR 或 DeepSeek 不可用，会自动 fallback，保证页面不崩。
 
 ## 当前能力
 
-- 上传或录制 `mp3` / `wav` 音频
+- 麦克风录音或上传 `mp3` / `wav` 音频
 - 本地 ASR 识别原文
 - DeepSeek 翻译译文
 - 页面展示双语字幕结果
@@ -35,8 +35,9 @@ python app.py
 
 ## 说明
 
-- 当前版本不是严格 WebSocket 实时系统
+- 当前版本支持麦克风录音和上传音频
 - 当前版本是 near-real-time segmented interpreter demo
+- 当前版本不是 WebSocket 工业级实时系统
 - 通过短音频切片 + 动态逐段输出模拟同传字幕体验
 - 首次运行本地 ASR 时，FunASR / SenseVoiceSmall 可能会下载模型文件
 - 如果本地模型初始化失败，页面会继续使用 mock ASR 返回演示文本
@@ -44,7 +45,7 @@ python app.py
 
 ## 后续方向
 
-- 麦克风实时流
+- 麦克风流式输入
 - WebSocket
 - VAD
 - TTS

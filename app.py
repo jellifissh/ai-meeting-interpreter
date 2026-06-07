@@ -28,7 +28,7 @@ def run_demo(
     processing_mode: str,
 ):
     if not audio_file:
-        yield "", "", "请先上传或录制音频", []
+        yield "", "", "请先录制或上传音频", []
         return
 
     audio_path = Path(audio_file)
@@ -133,14 +133,18 @@ def _run_segmented_demo(
 with gr.Blocks(title=APP_TITLE) as demo:
     gr.Markdown(f"# {APP_TITLE}")
     gr.Markdown(
-        "当前版本为上传/录制式准实时同传 Demo：系统将音频切分为短片段，逐段进行本地 ASR 和 DeepSeek 翻译，并动态生成双语字幕。"
+        "当前版本为麦克风录制式准实时同传 Demo：用户可录制或上传会议音频，系统会将音频切分为短片段，逐段进行本地 ASR 和 DeepSeek 翻译，并动态生成双语字幕时间轴。"
     )
     gr.Markdown(
         "AI Pipeline: Local ASR(SenseVoiceSmall/FunASR) -> DeepSeek LLM Translation -> Bilingual Subtitle Timeline"
     )
 
     with gr.Row():
-        audio_input = gr.Audio(label="会议音频（支持上传或麦克风录制）", type="filepath")
+        audio_input = gr.Audio(
+            label="麦克风录音 / 上传会议音频",
+            sources=["microphone", "upload"],
+            type="filepath",
+        )
         with gr.Column():
             direction_input = gr.Dropdown(
                 choices=TRANSLATION_DIRECTIONS,
@@ -157,7 +161,7 @@ with gr.Blocks(title=APP_TITLE) as demo:
                 value=PROCESSING_MODES[0],
                 label="处理模式",
             )
-            submit_button = gr.Button("开始处理", variant="primary")
+            submit_button = gr.Button("开始准实时传译", variant="primary")
 
     with gr.Column():
         source_output = gr.Textbox(label="原文", lines=6)
