@@ -55,3 +55,13 @@ python app.py
 - 支持不同会议场景下的翻译策略调整
 - 通过 Transcript Polish 提升 ASR 转写文本可读性
 - 输出双语字幕和会议理解结果，适合会议复盘和内容整理
+
+## 开发过程
+
+项目按功能模块分阶段开发与提交，主要包括页面骨架、本地 ASR 语音识别、DeepSeek 翻译、Transcript Polish 文本清洗、双语字幕时间轴、AI 会议理解和页面展示优化等阶段。
+
+## 第三方依赖说明
+
+本项目使用 Gradio 构建交互页面，使用 FunASR / SenseVoiceSmall 完成本地语音识别，使用 OpenAI-compatible SDK 调用 DeepSeek 进行翻译和会议理解，并使用 ffmpeg、librosa、soundfile 等工具完成音频预处理。
+
+项目原创实现部分包括：音频处理流程编排、ASR 结果清洗、场景化翻译 Prompt、双语字幕时间轴生成、AI 会议理解输出、Gradio 页面交互与整体工程集成。
